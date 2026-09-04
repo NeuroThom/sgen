@@ -14,6 +14,16 @@ namespace Bonsai.Sgen
 
         public override string Resolve(JsonSchema schema, bool isNullable, string typeNameHint)
         {
+            // A definition the base resolver would inline as a primitive never reaches the
+            // type name generator, so an external type name annotated on it is honored here.
+            var actualSchema = RemoveNullability(schema).ActualSchema;
+            if (!IsDefinitionTypeSchema(actualSchema) &&
+                actualSchema.TryGetExternalTypeName(out var externalTypeName) &&
+                !CSharpTypeNameGenerator.NamespaceEquals(externalTypeName, Settings.Namespace))
+            {
+                return isNullable ? externalTypeName + "?" : externalTypeName;
+            }
+
             var typeName = base.Resolve(schema, isNullable, typeNameHint);
             if (schema.ActualSchema.IsArray && schema.ActualSchema.UniqueItems && Settings is CSharpCodeDomGeneratorSettings generatorSettings)
             {
